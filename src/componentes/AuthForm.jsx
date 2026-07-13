@@ -22,27 +22,49 @@ const AuthForm = ({ onAuth, onClose }) => {
     e.preventDefault();
     setError('');
 
-    // Determinar la URL y los datos a enviar
     const url = isLogin ? LOGIN_URL : REGISTER_URL;
-    const dataToSend = isLogin ? { email, password } : { nombre, apellido, email, username: email, password };
+
+    // =========================================================================
+    // 🛠️ ADAPTACIÓN A FORM-DATA (Para que PHP lo lea mediante $_POST en producción)
+    // =========================================================================
+    const formData = new FormData();
+    formData.append('email', email);
+    formData.append('password', password);
+
+    if (!isLogin) {
+      formData.append('nombre', nombre);
+      formData.append('apellido', apellido);
+      formData.append('username', email); // Copia del correo para tu backend
+    }
 
     try {
-      const response = await axios.post(url, dataToSend, {
-        headers: { 'Content-Type': 'application/json' }
+      // Enviamos como multipart/form-data y agregamos credentials para InfinityFree
+      const response = await axios.post(url, formData, {
+        headers: { 
+          'Content-Type': 'multipart/form-data' 
+        },
+        withCredentials: true
       });
       
       // Manejo de respuesta exitosa (Login o Registro)
       if (response.status === 201 || response.status === 200) {
         
         const successMessage = response.data.message;
-        const userData = response.data.user; // Si es Login (response.status 200)
+        
+        // Ajustamos la lectura: si el backend devuelve un user_id y los datos sueltos
+        const userData = isLogin ? {
+          id: response.data.user_id,
+          nombre: response.data.nombre,
+          apellido: response.data.apellido,
+          email: response.data.email
+        } : null;
         
         alert(successMessage);
         onClose(); // Cerrar el modal
 
         // Si el login fue exitoso, actualiza el estado del usuario en App.js
-        if (isLogin && userData) {
-            onAuth(userData); // Pasar el objeto completo del usuario
+        if (isLogin && userData.id) {
+            onAuth(userData); // Pasar el objeto completo del usuario adaptado
         }
       }
       
