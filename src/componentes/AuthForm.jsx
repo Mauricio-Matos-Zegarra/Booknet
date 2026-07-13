@@ -1,17 +1,18 @@
 // src/componentes/AuthForm.jsx
 
 import React, { useState } from 'react';
-import axios from 'axios';
-
-// URLs de tu API
-const REGISTER_URL = 'https://api-booknet.infinityfreeapp.com/api/register.php';
-const LOGIN_URL = 'https://api-booknet.infinityfreeapp.com/api/login.php';
+import { auth } from '../firebase'; // Importamos la conexión a Firebase
+import { 
+  createUserWithEmailAndPassword, 
+  signInWithEmailAndPassword,
+  updateProfile 
+} from 'firebase/auth';
 
 const AuthForm = ({ onAuth, onClose }) => {
   // Estado para alternar entre Login y Registro
   const [isLogin, setIsLogin] = useState(true); 
   
-  // Estados para los campos (solo se usan email/password en Login)
+  // Estados para los campos
   const [nombre, setNombre] = useState('');
   const [apellido, setApellido] = useState('');
   const [email, setEmail] = useState('');
@@ -22,57 +23,72 @@ const AuthForm = ({ onAuth, onClose }) => {
     e.preventDefault();
     setError('');
 
-    const url = isLogin ? LOGIN_URL : REGISTER_URL;
-
-    // =========================================================================
-    // 🛠️ ADAPTACIÓN A FORM-DATA (Para que PHP lo lea mediante $_POST en producción)
-    // =========================================================================
-    const formData = new FormData();
-    formData.append('email', email);
-    formData.append('password', password);
-
-    if (!isLogin) {
-      formData.append('nombre', nombre);
-      formData.append('apellido', apellido);
-      formData.append('username', email); // Copia del correo para tu backend
-    }
-
     try {
-      // Enviamos como multipart/form-data y agregamos credentials para InfinityFree
-      const response = await axios.post(url, formData, {
-        headers: { 
-          'Content-Type': 'multipart/form-data' 
-        },
-        withCredentials: true
-      });
-      
-      // Manejo de respuesta exitosa (Login o Registro)
-      if (response.status === 201 || response.status === 200) {
-        
-        const successMessage = response.data.message;
-        
-        // Ajustamos la lectura: si el backend devuelve un user_id y los datos sueltos
-        const userData = isLogin ? {
-          id: response.data.user_id,
-          nombre: response.data.nombre,
-          apellido: response.data.apellido,
-          email: response.data.email
-        } : null;
-        
-        alert(successMessage);
-        onClose(); // Cerrar el modal
+      if (isLogin) {
+        // =========================================================================
+        // 🔑 LOGUEAR USUARIO CON FIREBASE
+        // =========================================================================
+        const userCredential = await signInWithEmailAndPassword(auth, email, password);
+        const user = userCredential.user;
 
-        // Si el login fue exitoso, actualiza el estado del usuario en App.js
-        if (isLogin && userData.id) {
-            onAuth(userData); // Pasar el objeto completo del usuario adaptado
-        }
+        // Simulamos la estructura de objeto que espera tu App.js
+        const userData = {
+          id: user.uid,
+          nombre: user.displayName ? user.displayName.split(' ')[0] : 'Usuario',
+          apellido: user.displayName ? user.displayName.split(' ')[1] || '' : '',
+          email: user.email
+        };
+
+        alert("¡Inicio de sesión exitoso!");
+        onClose(); // Cerrar modal
+        onAuth(userData); // Actualizar el estado en App.js
+
+      } else {
+        // =========================================================================
+        // 📝 REGISTRAR USUARIO CON FIREBASE
+        // =========================================================================
+        const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+        const user = userCredential.user;
+
+        // Guardamos el Nombre y Apellido en el perfil de Firebase para no perderlos
+        await updateProfile(user, {
+          displayName: `${nombre} ${apellido}`
+        });
+
+        alert("¡Usuario registrado con éxito!");
+        
+        // Pasamos automáticamente al login del usuario recién creado
+        const userData = {
+          id: user.uid,
+          nombre: nombre,
+          apellido: apellido,
+          email: user.email
+        };
+        
+        onClose(); // Cerrar modal
+        onAuth(userData); // Loguearlo automáticamente en App.js
       }
       
     } catch (err) {
-      if (err.response && err.response.data && err.response.data.message) {
-        setError(err.response.data.message);
-      } else {
-        setError("Error de red o el servidor PHP no está respondiendo.");
+      // Traducir los errores de Firebase al español para que queden prolijos
+      console.error(err);
+      switch (err.code) {
+        case 'auth/email-already-in-use':
+          setError('El correo electrónico ya está registrado.');
+          break;
+        case 'auth/weak-password':
+          setError('La contraseña debe tener al menos 6 caracteres.');
+          break;
+        case 'auth/invalid-email':
+          setError('El formato del correo electrónico no es válido.');
+          break;
+        case 'auth/user-not-found':
+        case 'auth/wrong-password':
+        case 'auth/invalid-credential':
+          setError('Correo o contraseña incorrectos.');
+          break;
+        default:
+          setError('Ocurrió un error en la autenticación. Reintentá.');
       }
     }
   };
