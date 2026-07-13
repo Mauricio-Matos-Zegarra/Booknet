@@ -1,0 +1,105 @@
+/* BookDetails — Vista de detalle */
+
+.book-details {
+  padding: 2rem 1rem 3rem;
+  max-width: 900px;
+}
+
+.book-details .card {
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-lg);
+  overflow: hidden;
+}
+
+.book-details .card-body {
+  padding: 2.5rem;
+}
+
+.book-details h1 {
+  font-family: var(--font-display);
+  color: var(--color-primary);
+  font-weight: 700;
+  font-size: clamp(1.75rem, 4vw, 2.5rem);
+  margin-bottom: 0.35rem;
+  line-height: 1.2;
+}
+
+.book-details h2 {
+  color: var(--color-text-muted);
+  font-weight: 400;
+  font-family: var(--font-body);
+  font-size: 1.15rem;
+  margin-bottom: 1.5rem;
+}
+
+.book-details hr {
+  border: none;
+  height: 1px;
+  background: var(--color-border);
+  margin: 1.5rem 0;
+}
+
+.book-metadata p {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 0.5rem;
+  font-size: 0.95rem;
+  color: var(--color-text);
+}
+
+.book-metadata strong {
+  color: var(--color-primary);
+  font-weight: 600;
+  min-width: fit-content;
+}
+
+.book-details h3 {
+  font-family: var(--font-display);
+  font-size: 1.3rem;
+  color: var(--color-primary);
+  margin-top: 1.75rem;
+  margin-bottom: 0.75rem;
+}
+
+.book-description {
+  text-align: justify;
+  color: var(--color-text-muted);
+  line-height: 1.8;
+  font-size: 1rem;
+}
+
+.book-details .download-button {
+  background: linear-gradient(135deg, var(--color-success) 0%, #40916c 100%) !important;
+  border: none !important;
+  font-weight: 600 !important;
+  padding: 0.75rem 2rem !important;
+  border-radius: var(--radius-sm) !important;
+  transition: all var(--transition) !important;
+  box-shadow: 0 4px 12px rgba(45, 106, 79, 0.25);
+}
+
+.book-details .download-button:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(45, 106, 79, 0.35) !important;
+}
+
+.book-details .btn-back {
+  font-size: 0.9rem;
+}
+
+.book-not-found {
+  text-align: center;
+  padding: 5rem 2rem;
+}
+
+.book-not-found h2 {
+  font-size: 1.75rem;
+  margin-bottom: 0.75rem;
+}
+
+.book-not-found p {
+  color: var(--color-text-muted);
+  margin-bottom: 1.5rem;
+}
