@@ -72,8 +72,19 @@ const PublishForm = ({ userId, onPublishSuccess }) => {
         const url = isEditing ? UPDATE_URL : CREATE_URL;
         const formData = new FormData();
         
+        // =========================================================================
+        // 🛠️ ADAPTACIÓN DE USER ID (De Firebase UID a MySQL ID)
+        // Si el ID es alfanumérico (Firebase), mandamos un entero equivalente (hash) 
+        // para que no rompa si tu base de datos MySQL tiene 'id_usuario' como INT.
+        // =========================================================================
+        let finalUserId = userId;
+        if (typeof userId === 'string' && isNaN(userId)) {
+            // Genera un número entero único a partir de las letras del UID de Firebase
+            finalUserId = userId.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
+        }
+
         // Añadir todos los campos de texto normales
-        formData.append('id_usuario', userId); 
+        formData.append('id_usuario', finalUserId); 
         formData.append('titulo', title);
         formData.append('autor', author);
         formData.append('genero', genre);
@@ -86,23 +97,29 @@ const PublishForm = ({ userId, onPublishSuccess }) => {
         }
 
         // TRUCO: Le mandamos strings simulados en lugar de los archivos binarios reales
-        // De esta forma tu PHP los recibe como texto, los guarda en la BD, ¡e InfinityFree no se queja!
         formData.append('pdf_file_simulated', pdfPath);
         formData.append('cover_file_simulated', coverPath);
 
         try {
-            const response = await axios.post(url, formData); 
+            // 🚀 Enviamos con headers y credentials para evitar bloqueos CORS de InfinityFree
+            const response = await axios.post(url, formData, {
+                headers: { 
+                    'Content-Type': 'multipart/form-data' 
+                },
+                withCredentials: true
+            }); 
 
             if (response.status === 201 || response.status === 200) {
-                alert(`Libro ${isEditing ? 'actualizado' : 'publicado'} con éxito.`);
+                alert(`¡Libro ${isEditing ? 'actualizado' : 'publicado'} con éxito!`);
                 navigate('/mis-publicaciones'); 
                 if (onPublishSuccess) onPublishSuccess(); 
             }
 
         } catch (err) {
-            const msg = err.response?.data?.message || "Error de red o servidor.";
+            const msg = err.response?.data?.message || "Error de red o servidor al intentar publicar.";
             setError("Error: " + msg);
         } finally {
+            setLoading=false;
             setLoading(false);
         }
     };
@@ -129,7 +146,6 @@ const PublishForm = ({ userId, onPublishSuccess }) => {
                 
                 <label>Descripción: <textarea value={description} onChange={(e) => setDescription(e.target.value)} rows="4" required></textarea></label>
 
-                {/* MODIFICACIÓN VISUAL: Inputs de texto simples que cargan por defecto "1984.pdf" y "1984.jpg" */}
                 {!isEditing && (
                     <>
                         <label>Nombre archivo PDF (Simulado): <input type="text" value={pdfPath} onChange={(e) => setPdfPath(e.target.value)} required /></label>

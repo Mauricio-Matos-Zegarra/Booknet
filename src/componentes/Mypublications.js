@@ -1,5 +1,5 @@
 // src/componentes/MyPublications.js
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import { Container, Row, Col, Card, Button, Alert } from 'react-bootstrap';
 import { Link, useNavigate } from 'react-router-dom';
@@ -14,12 +14,20 @@ const MyPublications = ({ userId, onBookDeleted }) => {
     const [error, setError] = useState(null);
     const navigate = useNavigate();
 
+    // =========================================================================
+    // 🛠️ ADAPTACIÓN DE USER ID (De Firebase UID a MySQL ID)
+    // =========================================================================
+    let finalUserId = userId;
+    if (typeof userId === 'string' && isNaN(userId)) {
+        finalUserId = userId.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
+    }
+
     // FUNCIÓN 1: OBTENER LIBROS DEL USUARIO
     const fetchMyBooks = async () => {
         setLoading(true);
         setError(null);
         try {
-            const response = await axios.get(`${GET_USER_BOOKS_URL}?user_id=${userId}`);
+            const response = await axios.get(`${GET_USER_BOOKS_URL}?user_id=${finalUserId}`);
             const loadedBooks = Array.isArray(response.data) ? response.data : [];
             setMyBooks(loadedBooks);
         } catch (err) {
@@ -44,10 +52,16 @@ const MyPublications = ({ userId, onBookDeleted }) => {
         }
 
         try {
-            // Utilizamos axios.post para enviar el body { id, user_id }
-            const response = await axios.post(DELETE_BOOK_URL, {
-                id: bookId, 
-                id_usuario: userId // Crucial para que PHP verifique la propiedad
+            // Empaquetamos en FormData para máxima compatibilidad con el backend PHP en hosting gratuito
+            const formData = new FormData();
+            formData.append('id', bookId);
+            formData.append('id_usuario', finalUserId); // ID de usuario adaptado
+
+            const response = await axios.post(DELETE_BOOK_URL, formData, {
+                headers: { 
+                    'Content-Type': 'multipart/form-data' 
+                },
+                withCredentials: true
             });
             
             alert(response.data.message || "Libro eliminado con éxito.");
@@ -102,7 +116,6 @@ const MyPublications = ({ userId, onBookDeleted }) => {
                                         <small className="text-muted">Género: {book.genero}</small>
                                     </Card.Text>
                                     <div className="d-flex justify-content-between mt-3">
-                                        
                                         {/* Botón ELIMINAR */}
                                         <Button 
                                             variant="danger" 
