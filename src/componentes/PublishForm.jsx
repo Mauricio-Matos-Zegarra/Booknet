@@ -19,9 +19,9 @@ const PublishForm = ({ userId, onPublishSuccess }) => {
     const [editorial, setEditorial] = useState(''); 
     const [idioma, setIdioma] = useState(''); 
     
-    // Simulamos las rutas fijas para el catálogo local de forma transparente
-    const pdfPath = '1984.pdf';
-    const coverPath = '1984.jpg';
+    // ESTADOS PARA LOS ARCHIVOS (Ahora el usuario los puede escribir de nuevo)
+    const [pdfPath, setPdfPath] = useState('1984.pdf');
+    const [coverPath, setCoverPath] = useState('1984.jpg');
     
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState('');
@@ -37,15 +37,16 @@ const PublishForm = ({ userId, onPublishSuccess }) => {
         try {
             // Guardamos el documento directamente en tu colección NoSQL "books" de Google
             await addDoc(collection(db, 'books'), {
-                id_usuario: userId, // Guardamos tu ID de Firebase limpio
+                id_usuario: userId, // Tu UID de Firebase
                 titulo: title,
                 autor: author,
                 genero: genre,
                 descripcion: description,
                 editorial: editorial,
                 idioma: idioma,
-                portadaURL: '/assets/pdfs/1984.jpg', // URL de tu maqueta local
-                pdfURL: '/assets/pdfs/1984.pdf'     // PDF de tu maqueta local
+                // Armamos las rutas usando los nombres que el usuario ingresó en el formulario:
+                portadaURL: `/assets/pdfs/${coverPath}`, 
+                pdfURL: `/assets/pdfs/${pdfPath}`     
             });
 
             alert('¡Libro publicado con éxito!');
@@ -57,7 +58,7 @@ const PublishForm = ({ userId, onPublishSuccess }) => {
             console.error("Error al guardar en Firestore:", err);
             setError("Error al intentar publicar el libro en Firebase.");
         } finally {
-            setLoading(false); // Corregido el error de asignación 'setLoading=false' 🚀
+            setLoading(false); 
         }
     };
 
@@ -81,7 +82,18 @@ const PublishForm = ({ userId, onPublishSuccess }) => {
                 
                 <label>Descripción: <textarea value={description} onChange={(e) => setDescription(e.target.value)} rows="4" required></textarea></label>
                 
-                <button type="submit" disabled={loading} className="submit-button">
+                {/* 📂 Campos de archivos simulados visibles nuevamente */}
+                <div className="file-simulation-fields" style={{ marginTop: '15px', padding: '10px', background: '#f9f9f9', borderRadius: '5px' }}>
+                    <h5 style={{ fontSize: '14px', marginBottom: '10px', color: '#555' }}>Archivos asociados (Simulado local):</h5>
+                    <label>Nombre archivo PDF: 
+                        <input type="text" value={pdfPath} onChange={(e) => setPdfPath(e.target.value)} required />
+                    </label>
+                    <label style={{ marginTop: '10px' }}>Nombre archivo Portada: 
+                        <input type="text" value={coverPath} onChange={(e) => setCoverPath(e.target.value)} required />
+                    </label>
+                </div>
+
+                <button type="submit" disabled={loading} className="submit-button" style={{ marginTop: '20px' }}>
                     {loading ? 'Procesando...' : 'Publicar Libro'}
                 </button>
             </form>
