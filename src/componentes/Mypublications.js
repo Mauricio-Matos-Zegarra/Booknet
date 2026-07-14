@@ -1,12 +1,10 @@
 // src/componentes/MyPublications.js
 import React, { useState, useEffect } from 'react';
-import axios from 'axios';
+import { db } from '../firebase'; // Importamos la base de datos de Firestore
+import { collection, query, where, getDocs, doc, deleteDoc } from 'firebase/firestore'; // Funciones de Google para consultar y borrar
 import { Container, Row, Col, Card, Button, Alert } from 'react-bootstrap';
 import { Link, useNavigate } from 'react-router-dom';
 import './MyPublications.css';
-
-const GET_USER_BOOKS_URL = 'https://api-booknet.infinityfreeapp.com/api/get_user_books.php';
-const DELETE_BOOK_URL = 'https://api-booknet.infinityfreeapp.com/api/delete_book.php';
 
 const MyPublications = ({ userId, onBookDeleted }) => {
     const [myBooks, setMyBooks] = useState([]);
@@ -14,24 +12,25 @@ const MyPublications = ({ userId, onBookDeleted }) => {
     const [error, setError] = useState(null);
     const navigate = useNavigate();
 
-    // =========================================================================
-    // 🛠️ ADAPTACIÓN DE USER ID (De Firebase UID a MySQL ID)
-    // =========================================================================
-    let finalUserId = userId;
-    if (typeof userId === 'string' && isNaN(userId)) {
-        finalUserId = userId.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
-    }
-
-    // FUNCIÓN 1: OBTENER LIBROS DEL USUARIO
+    // 📡 FUNCIÓN 1: OBTENER LIBROS DEL USUARIO DESDE FIRESTORE
     const fetchMyBooks = async () => {
         setLoading(true);
         setError(null);
         try {
-            const response = await axios.get(`${GET_USER_BOOKS_URL}?user_id=${finalUserId}`);
-            const loadedBooks = Array.isArray(response.data) ? response.data : [];
+            // Hacemos una consulta rápida NoSQL donde 'id_usuario' coincida con tu UID de Firebase
+            const q = query(collection(db, 'books'), where('id_usuario', '==', userId));
+            const querySnapshot = await getDocs(q);
+            const loadedBooks = [];
+            
+            querySnapshot.forEach((doc) => {
+                // Seteamos los libros emparejando el id único del documento NoSQL de Google
+                loadedBooks.push({ id: doc.id, ...doc.data() });
+            });
+            
             setMyBooks(loadedBooks);
         } catch (err) {
-            setError("No se pudieron cargar tus publicaciones.");
+            console.error("Error al cargar publicaciones de Firestore:", err);
+            setError("No se pudieron cargar tus publicaciones desde el servidor NoSQL.");
             setMyBooks([]);
         } finally {
             setLoading(false);
@@ -45,35 +44,27 @@ const MyPublications = ({ userId, onBookDeleted }) => {
     }, [userId, navigate]);
 
 
-    // FUNCIÓN 2: MANEJAR LA ELIMINACIÓN
+    // 🗑️ FUNCIÓN 2: MANEJAR LA ELIMINACIÓN DIRECTA EN FIRESTORE
     const handleDelete = async (bookId, title) => {
-        if (!window.confirm(`¿Estás seguro de que deseas eliminar la publicación: "${title}"? Esta acción es irreversible y eliminará los archivos.`)) {
+        if (!window.confirm(`¿Estás seguro de que deseas eliminar la publicación: "${title}"?`)) {
             return;
         }
 
         try {
-            // Empaquetamos en FormData para máxima compatibilidad con el backend PHP en hosting gratuito
-            const formData = new FormData();
-            formData.append('id', bookId);
-            formData.append('id_usuario', finalUserId); // ID de usuario adaptado
-
-            const response = await axios.post(DELETE_BOOK_URL, formData, {
-                headers: { 
-                    'Content-Type': 'multipart/form-data' 
-                },
-                withCredentials: true
-            });
+            // Eliminamos el documento directamente en Firestore usando su ID alfanumérico
+            await deleteDoc(doc(db, 'books', bookId));
             
-            alert(response.data.message || "Libro eliminado con éxito.");
+            alert("Libro eliminado con éxito.");
             
-            fetchMyBooks(); // Recargar la lista de Mis Publicaciones
+            fetchMyBooks(); // Recargamos de inmediato la sección local
+            
             if (onBookDeleted) {
-                onBookDeleted(); // Notificar a App.js para recargar el catálogo general
+                onBookDeleted(); // Notificamos a App.js para que también actualice el catálogo de inicio
             }
 
         } catch (err) {
-            const errorMessage = err.response?.data?.message || "Error de conexión o permiso.";
-            alert("Error al eliminar: " + errorMessage);
+            console.error("Error al eliminar documento de Firestore:", err);
+            alert("Error al intentar eliminar el libro de Firebase.");
         }
     };
 
@@ -116,7 +107,6 @@ const MyPublications = ({ userId, onBookDeleted }) => {
                                         <small className="text-muted">Género: {book.genero}</small>
                                     </Card.Text>
                                     <div className="d-flex justify-content-between mt-3">
-                                        {/* Botón ELIMINAR */}
                                         <Button 
                                             variant="danger" 
                                             size="sm" 

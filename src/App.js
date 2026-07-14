@@ -3,7 +3,10 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route, Link } from 'react-router-dom';
 import { Navbar, Nav, Container } from 'react-bootstrap';
-import axios from 'axios';
+
+// 📡 IMPORTACIONES DE FIREBASE FIRESTORE
+import { db } from './firebase'; 
+import { collection, getDocs } from 'firebase/firestore'; 
 
 // Importación de Componentes
 import Footer from './componentes/Footer.jsx'; 
@@ -16,9 +19,6 @@ import GenreFilter from './componentes/GenreFilter.jsx';
 import PublishForm from './componentes/PublishForm.jsx';
 import MyPublications from './componentes/Mypublications.js'; 
 import './App.css'; 
-
-// URLS y Constantes
-const GET_BOOKS_URL = 'https://api-booknet.infinityfreeapp.com/api/get_books.php';
 
 const AVAILABLE_GENRES = [
     'Todos',
@@ -71,19 +71,25 @@ function App() {
   // FUNCIONES CENTRALES
   // =========================================================
 
-  // FUNCIÓN PARA OBTENER LIBROS DEL SERVIDOR
+  // 🚀 FUNCIÓN PARA OBTENER LIBROS DIRECTAMENTE DESDE FIRESTORE
   const fetchBooks = async () => {
       setLoadingBooks(true);
       try {
-          const response = await axios.get(GET_BOOKS_URL);
+          // Consultamos la colección 'books' en tu base NoSQL
+          const querySnapshot = await getDocs(collection(db, 'books'));
+          const publishedBooks = [];
           
-          if (response.status === 200 && Array.isArray(response.data)) {
-              const publishedBooks = response.data;
-              const combinedBooks = [...initialBooks, ...publishedBooks];
-              setBooks(combinedBooks);
-          }
+          querySnapshot.forEach((doc) => {
+              // Combinamos el ID generado por Google con el resto de campos del libro
+              publishedBooks.push({ id: doc.id, ...doc.data() });
+          });
+          
+          // Combinamos tus libros locales en books.js con los nuevos subidos a Firestore
+          const combinedBooks = [...initialBooks, ...publishedBooks];
+          setBooks(combinedBooks);
       } catch (error) {
-          console.error("Error al obtener libros del servidor:", error);
+          console.error("Error al obtener libros de Firestore:", error);
+          // Si por alguna razón falla la red, cargamos los estáticos para salvar la presentación
           setBooks(initialBooks); 
       } finally {
           setLoadingBooks(false);
@@ -93,7 +99,7 @@ function App() {
   // FUNCIÓN DE ÉXITO DE PUBLICACIÓN (Recarga la lista)
   const handlePublishSuccess = () => {
       fetchBooks();
-      alert("¡Tu libro ha sido publicado y está pendiente de revisión!"); 
+      alert("¡Tu libro ha sido publicado con éxito!"); 
   };
 
   // FUNCIÓN DE AUTENTICACIÓN (LOGIN)
